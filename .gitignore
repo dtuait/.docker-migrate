@@ -1,5 +1,5 @@
 # Ignore everything
-*
+
 
 # But not these directories, so we can recurse into them
 !/images/
