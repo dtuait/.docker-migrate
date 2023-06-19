@@ -2,12 +2,16 @@
 
 
 # But not these directories, so we can recurse into them
-!/images/
-!/volumes/
+!/_images/
+!/_volumes/
+!/migrated-composer/
+
 
 # Ignore all files in these directories
-/images/*
-/volumes/*
+/_images/*
+/_volumes/*
+/migrated-composer/*
+
 
 # Except .gitignore and .gitkeep
 !/.gitignore
