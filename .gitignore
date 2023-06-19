@@ -1,0 +1,16 @@
+# Ignore everything
+*
+
+# But not these directories, so we can recurse into them
+!/images/
+!/volumes/
+
+# Ignore all files in these directories
+/images/*
+/volumes/*
+
+# Except .gitignore and .gitkeep
+!/.gitignore
+!/.gitkeep
+# !/images/.gitignore
+# !/volumes/.gitignore
