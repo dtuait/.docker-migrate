@@ -11,6 +11,9 @@
 /_images/*
 /_volumes/*
 /migrated-composer/*
+images.txt
+volumes.txt
+docker-compose.yaml
 
 
 # Except .gitignore and .gitkeep
