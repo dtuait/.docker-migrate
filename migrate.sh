@@ -82,8 +82,12 @@ if [ "$migrate" == "export" ]; then
 done
 
 # Export script ends here
-elif [ "$migrate" == "import" ]; then
+
+
+
 # Import script starts here
+elif [ "$migrate" == "import" ]; then
+
     echo "Importing volumes..."
     # import volumes to docker
     for volume in "${volumes[@]}"; do
