@@ -122,10 +122,20 @@ if [ "$migrate" == "export" ]; then
     fi
     mkdir -p ./_volumes
 
-    # Array of images to export
+    # if images.txt does not exist, create it
+    if [ ! -f "images.txt" ]; then
+        gecho "Creating images.txt..."
+        touch images.txt
+    fi
+    # array of image names to import
     mapfile -t images < images.txt
 
-    # Read volumesto export
+    # if volumes.txt does not exist, create it
+    if [ ! -f "volumes.txt" ]; then
+        gecho "Creating volumes.txt..."
+        touch volumes.txt
+    fi
+    # Read volumes.txt into array
     mapfile -t volumes < volumes.txt
 
     # Loop over volumes and back each one up
