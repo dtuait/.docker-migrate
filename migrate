@@ -26,7 +26,16 @@ if [ "$EUID" -ne 0 ]; then echo "Please run as root"; exit 1; fi
 
 
 # before doing anything make sure all containers are stopped
-docker stop $(docker ps -a -q) > /dev/null 2>&1
+# Step 1: Get all currently running container IDs and save them in an array
+running_containers=$(docker ps -q)
+
+# Step 2: Stop the running containers
+if [ ! -z "$running_containers" ]; then
+  echo "Stopping running containers: $running_containers"
+  docker stop $running_containers
+else
+  echo "No running containers to stop."
+fi
 
 
 SCRIPT_DIR=$(pwd)/$(dirname "$0")
@@ -338,6 +347,18 @@ elif [ "$migrate" == "import" ]; then
 
 # Import script ends here    
 fi
+
+
+
+# Step 3: Start the previously running containers
+if [ ! -z "$running_containers" ]; then
+  gecho "Restarting containers: $running_containers"
+  docker start $running_containers
+else
+  oecho "No containers to restart."
+fi
+
+
 
 gecho "Script has completed $migrate"
 exit 0
