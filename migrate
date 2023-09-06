@@ -234,8 +234,8 @@ elif [ "$migrate" == "import" ]; then
     tar -xzvf $PROJECT_NAME.tar.gz -C ../ > /dev/null
 
     # cd to the project directory
-    gecho "cd's to ../$PROJECT_NAME/.migrate"
-    cd ../$PROJECT_NAME/.migrate
+    gecho "cd's to ../$PROJECT_NAME/.docker-migrate"
+    cd ../$PROJECT_NAME/.docker-migrate
     gecho "pwd is $(pwd)"
 
     # array of image names to import
