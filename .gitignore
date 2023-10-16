@@ -13,6 +13,8 @@
 /migrated-composer/*
 images.txt
 volumes.txt
+exclude-folders.txt
+networks.txt
 docker-compose.yaml
 
 

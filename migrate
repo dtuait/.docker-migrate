@@ -138,6 +138,64 @@ if [ "$migrate" == "export" ]; then
     # Read volumes.txt into array
     mapfile -t volumes < volumes.txt
 
+
+    # if networks.txt does not exist, create it
+    if [ ! -f "networks.txt" ]; then
+        gecho "Creating networks.txt..."
+        touch networks.txt
+    fi
+
+    # Read networks.txt into array
+    mapfile -t networks < networks.txt
+
+    # if exclude-folders.txt does not exist
+    if [ ! -f "exclude-folders.txt" ]; then
+        gecho "Creating exclude-folders.txt..."
+        touch exclude-folders.txt
+    fi
+
+    # Read exclude-folders.txt into array
+    mapfile -t exclude_folders < exclude-folders.txt
+
+ 
+    # for each folder check if the folder exist
+    for folder in "${exclude_folders[@]}"; do
+        # check if not folder exists in $SCRIPT_DIR
+        if [ ! -d "$SCRIPT_DIR/../$folder" ]; then
+            recho "Error: $SCRIPT_DIR/../$folder does not exist."
+            exit 1
+        fi
+    done
+
+
+    exclude_flags=""
+    # Check if exclude_folders is not empty
+    gecho "Checking if exclude_folders is not empty..."
+    if [ "${#exclude_folders[@]}" -ne 0 ]; then
+        gecho "exclude_folders is not empty..."
+
+        # Initialize an empty string to hold all the exclude flags
+        
+        # Check each folder; if it exists, append to the exclude_flags string
+        for folder in "${exclude_folders[@]}"; do
+            gecho "Checking if $SCRIPT_DIR/../$folder exists..."
+            # check if not folder exists in $SCRIPT_DIR
+            if [ ! -d "$SCRIPT_DIR/../$folder" ]; then
+                recho "Error: $SCRIPT_DIR/../$folder does not exist."
+                exit 1
+            else
+                gecho "Adding $SCRIPT_DIR/../$folder to exclude_flags..."
+                exclude_flags+="--exclude=$SCRIPT_DIR/../$folder "
+            fi
+        done
+
+        gecho "exclude_flags: $exclude_flags"
+    fi
+
+
+
+
+
     # Loop over volumes and back each one up
     for volume in "${volumes[@]}"; do
         gecho "Backing up $volume..."
@@ -204,7 +262,7 @@ if [ "$migrate" == "export" ]; then
 
     # Create the tar.gz file
     gecho "Creating tar.gz file..."
-    tar -czvf "$save_directory/$tar_filename" "$PROJECT_NAME" > /dev/null
+    tar -czvf "$save_directory/$tar_filename" $exclude_flags "$PROJECT_NAME" > /dev/null
 
     # remove $save_directory/$PROJECT_NAME if it exist
     if [ -f "$save_directory/${PROJECT_NAME}" ]; then
