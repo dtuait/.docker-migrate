@@ -142,7 +142,14 @@ set_scripts_directory_path() {
 
 set_project_name() {
     if [ "$NAME_CURRENT_FOLDER" == "$NAME_DOCKER_MIGRATE" ]; then
+
+
         PROJECT_NAME=$(basename "$(dirname "$(dirname "$NAME_SCRIPTS_DIRECTORY_PATH")")")
+        # if debug is true, print the following # and pwd
+        if [ "$DEBUG" = true ]; then
+            mecho "PROJECT_NAME: $PROJECT_NAME"
+            mecho "pwd is $(pwd)"
+        fi
     elif [ "$NAME_CURRENT_FOLDER" == "$NAME_MIGRATION_STATION" ]; then
         PROJECT_NAME=$(basename "$0")
     else
@@ -207,14 +214,29 @@ delete_old_images_tar_files() {
 }
 
 get__images() {
-    # if images.txt does not exist, create it
-    if [ ! -f "$NAME_SCRIPTS_DIRECTORY_PATH/images.txt" ]; then
-        gecho "Creating images.txt..."
-        touch $NAME_SCRIPTS_DIRECTORY_PATH/images.txt
-    fi
-    mapfile -t images < $NAME_SCRIPTS_DIRECTORY_PATH/images.txt
-}
+    local current_path=$(pwd)
 
+    if [ "$DEBUG" = true ]; then
+        mecho "Reading images from images.txt..."
+        cat $NAME_SCRIPTS_DIRECTORY_PATH/images.txt
+    fi
+
+    if [ "$NAME_CURRENT_FOLDER" == "$NAME_MIGRATION_STATION" ]; then
+        cd $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate
+        if  [ ! -f "./images.txt" ]; then
+            touch ./images.txt
+        fi
+        mapfile -t images < ./images.txt
+    else
+        if [ ! -f "$NAME_SCRIPTS_DIRECTORY_PATH/images.txt" ]; then
+            gecho "Creating images.txt..."
+            touch $NAME_SCRIPTS_DIRECTORY_PATH/images.txt
+        fi
+        mapfile -t images < $NAME_SCRIPTS_DIRECTORY_PATH/images.txt
+    fi
+
+    cd $current_path
+}
 
 delete_old_volumes_tar_files() {
             # Delete the volumes directory if it exists, then recreate it
@@ -226,12 +248,39 @@ delete_old_volumes_tar_files() {
         }
 
 get__volumes() {
-    # if volumes.txt does not exist, create it
-    if [ ! -f "$NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt" ]; then
-        gecho "Creating volumes.txt..."
-        touch $NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt
+
+
+    
+
+    # if debg is true, print the following
+    if [ "$DEBUG" = true ]; then
+        mecho "Reading volumes from volumes.txt..."
+        cat $NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt
     fi
-    mapfile -t volumes < $NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt
+
+
+    # $NAME_CURRENT_FOLDER is migration_station
+    if [ "$NAME_CURRENT_FOLDER" == "$NAME_MIGRATION_STATION" ]; then
+        # store the current cd path
+        local current_path=$(pwd)
+
+        # cd to the project directory
+        cd $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate
+        if  [ ! -f "./volumes.txt" ]; then
+            touch ./volumes.txt
+        fi
+        mapfile -t volumes < ./volumes.txt
+        # cd back to the current path   
+        cd $current_path
+    else
+
+        # if volumes.txt does not exist, create it
+        if [ ! -f "$NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt" ]; then
+            gecho "Creating volumes.txt..."
+            touch $NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt
+        fi
+        mapfile -t volumes < $NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt
+    fi
 } 
 
 
@@ -239,11 +288,8 @@ execute_migration() {
     if [ "$MIGRATE" == "export" ]; then
         # Put the code for the 'export' case here
 
-        gecho "Exporting volumes..."
-
-        
+        gecho "Exporting volumes..."        
         delete_old_volumes_tar_files
-
         get__volumes
         for volume in "${volumes[@]}"; do
 
@@ -263,13 +309,10 @@ execute_migration() {
                 exit 1
             fi
         done
-
         gecho "Done exporting volumes."
-
-
+        
         gecho "Exporting images..."
         delete_old_images_tar_files
-
         get__images
         for image in "${images[@]}"; do
 
@@ -285,35 +328,36 @@ execute_migration() {
             backup_image $image $NAME_SCRIPTS_DIRECTORY_PATH/_images
             
 
-    done
+        done
+        gecho "Done exporting images."
 
 
+        # Define the directory where the tar.gz file should be saved
+        migration_station_dir="${NAME_SCRIPTS_DIRECTORY_PATH}/../../../migration_station"
 
 
-    # save api.security.ait.dtu.dk to a .tar.gz file using NAME_SCRIPTS_DIRECTORY_PATH: /home/vicmrp/docker/api.security.ait.dtu.dk/.devcontainer/.docker-migrate
+        if [ -f "$migration_station_dir/$PROJECT_NAME" ]; then
+            gecho "Deleting old $PROJECT_NAME... in $migration_station_dir"
+            rm "$migration_station_dir/$PROJECT_NAME"
+        fi        
+        
+        # if -d $migration_station_dir/$PROJECT_NAME exist delete it
+        if [ -d "$migration_station_dir/$PROJECT_NAME" ]; then
+            gecho "Deleting old $PROJECT_NAME... in $migration_station_dir"
+            rm -rf "$migration_station_dir/$PROJECT_NAME"
+        fi
+        cp $NAME_SCRIPTS_DIRECTORY_PATH/migration_station.sh $migration_station_dir/$PROJECT_NAME
 
-    # Define the directory where the tar.gz file should be saved
-    migration_station_dir="${NAME_SCRIPTS_DIRECTORY_PATH}/../../../migration_station"
-
-    # remove $save_directory/$PROJECT_NAME if it exist
-    if [ -f "$migration_station_dir/$PROJECT_NAME" ]; then
-        gecho "Deleting old $PROJECT_NAME... in $migration_station_dir"
-        rm "$migration_station_dir/$PROJECT_NAME"
-    fi
-    
-    
-    cp $NAME_SCRIPTS_DIRECTORY_PATH/migration_station.sh $migration_station_dir/$PROJECT_NAME
-
-    
-    # Define the tar.gz file name
-    tar -czf $migration_station_dir/$PROJECT_NAME.tar.gz $NAME_SCRIPTS_DIRECTORY_PATH/../../../$PROJECT_NAME > /dev/null
-    # check if successful
-    if [ $? -eq 0 ]; then
-        gecho "Creating tar.gz file..."
-    else
-        recho "Error creating tar.gz file."
-        exit 1
-    fi
+        
+        # Define the tar.gz file name
+        tar -czf $migration_station_dir/$PROJECT_NAME.tar.gz $NAME_SCRIPTS_DIRECTORY_PATH/../../../$PROJECT_NAME > /dev/null
+        # check if successful
+        if [ $? -eq 0 ]; then
+            gecho "Creating tar.gz file..."
+        else
+            recho "Error creating tar.gz file."
+            exit 1
+        fi
     
 
 
@@ -334,7 +378,133 @@ execute_migration() {
 
     elif [ "$MIGRATE" == "import" ]; then
         # Put the code for the 'import' case here
-        gecho "importing"
+        gecho "importing..."
+
+        # If $PROJECT_NAME already exists, move it to $PROJECT_NAME-$datetime        
+        _project_dir=$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME
+
+        # if debg is true, print the following
+        if [ "$DEBUG" = true ]; then
+            mecho "$_project_dir"
+            # exit 0
+        fi
+
+        ## $_project_dir >> /home/vicmrp/docker/migration_station/../../../api.security.ait.dtu.dk
+        if [ -d "$_project_dir" ]; then
+            # if debug the true, print the following
+            datetime=$(date '+%Y-%m-%d-%H-%M-%S')
+            gecho "Moving $PROJECT_NAME to $PROJECT_NAME-$datetime..."
+            mv $_project_dir $_project_dir-$datetime
+        fi
+
+        # Extract the tar.gz file and put it in the parent directory
+        _tar_project_dir=$NAME_SCRIPTS_DIRECTORY_PATH/$PROJECT_NAME.tar.gz
+        gecho "Extracting tar.gz file...."
+        tar -xzf $_tar_project_dir -C $NAME_SCRIPTS_DIRECTORY_PATH/../ > /dev/null
+
+
+        # cd to the project directory
+        gecho "cd's to $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate"
+        cd $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate
+        # if debug is true, print the following
+        if [ "$DEBUG" = true ]; then
+            mecho "pwd is $(pwd)"
+        fi
+
+        get__images
+        gecho "Importing images..."
+        for image in "${images[@]}"; do
+            gecho "Loading image $image..."
+
+            # delete image if it exists
+            if [ ! -z "$(docker images -q $image)" ]; then
+
+                # if container is using this image, delete it
+                if [ ! -z "$(docker ps -a -q -f ancestor=$image)" ]; then
+                    recho "Error: Container is using $image."
+                    exit 1
+                fi
+
+                oecho "Deleting aleady existing image in this docker enviroment; image: $image..."
+                docker rmi $image >/dev/null
+            fi
+            
+            safe_image_name=$(echo $images | tr '/' '.')
+            safe_image_name=$(echo $safe_image_name | tr ':' '_')
+            echo $safe_image_name
+            docker load -i _images/$safe_image_name.tar >/dev/null
+
+            if [ $? -eq 0 ]; then
+                gecho "$image loaded successfully."
+            else
+                recho "Error loading $image."
+                exit 1
+            fi
+        done
+        gecho "Done importing images."
+
+
+        get__volumes
+        gecho "Importing volumes..."
+        # import volumes to docker
+        for volume in "${volumes[@]}"; do
+
+            # if debug is true, print the following
+            if [ "$DEBUG" = true ]; then
+                mecho "Importing $volume..."
+            fi
+
+            # if volume exists 
+            if [ -n "$(docker volume ls -q | grep $volume)" ]; then
+
+                # if debug is true, print the following
+                if [ "$DEBUG" = true ]; then
+                    mecho "Backup volume volume $volume..."
+                fi
+                
+                backup_filepath=$_project_dir-$datetime/.devcontainer/.docker-migrate/_volumes_backup/
+                # check if backup_filepath exist if not create it
+                if [ ! -d $backup_filepath ]; then
+                    mkdir -p $backup_filepath
+                fi                
+                backup_volume $volume $backup_filepath
+                # check if successful
+                if [ $? -eq 0 ]; then
+                    gecho "$volume backed up successfully."
+                else
+                    recho "Error backing up $volume."
+                    exit 1
+                fi
+                # delete the volume from docker enviroment
+                # try to delete docker rm $volume
+                docker volume rm $volume
+                # check if successful
+                if [ $? -eq 0 ]; then
+                    gecho "$volume deleted successfully."
+                else
+                    recho "Error deleting $volume."
+                    exit 1
+                fi
+            fi
+                
+            docker volume create $volume
+
+            docker run --rm -v $volume:/volume -v $(pwd)/_volumes:/backup alpine tar -xzvf /backup/$volume.tar >/dev/null
+            if [ $? -eq 0 ]; then
+                gecho "$volume imported successfully."
+            else
+                recho "Error importing $volume."
+                exit 1
+            fi
+
+        done
+
+        gecho "Done importing volumes."
+        
+        delete_old_images_tar_files
+        delete_old_volumes_tar_files
+
+
     else
         echo "Error: Unknown MIGRATE value: $MIGRATE"
         exit 1
@@ -373,15 +543,6 @@ process_arguments "$@"
 validate_arguments
 set_current_folder_name
 set_scripts_directory_path
-if [ "$DEBUG" = true ]; then
-    mecho "MIGRATE: $MIGRATE"
-    mecho "DEBUG: $DEBUG"
-    mecho "NAME_CURRENT_FOLDER: $NAME_CURRENT_FOLDER"
-    mecho "NAME_DOCKER_MIGRATE: $NAME_DOCKER_MIGRATE"
-    mecho "NAME_MIGRATION_STATION: $NAME_MIGRATION_STATION"
-    mecho "NAME_SCRIPTS_DIRECTORY_PATH: $NAME_SCRIPTS_DIRECTORY_PATH"
-    mecho "PROJECT_NAME: $PROJECT_NAME"
-fi
 validate_migration_and_directory
 stop_running_containers
 set_project_name
@@ -398,11 +559,6 @@ fi
 
 execute_migration
 restart_containers
-
-
-echo $MIGRATE
-echo $DEBUG
-echo $NAME_CURRENT_FOLDER
 
 exit 0
 
@@ -592,6 +748,72 @@ if [ "$MIGRATE" == "export" ]; then
 
 
 done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
