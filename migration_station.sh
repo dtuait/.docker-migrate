@@ -187,7 +187,7 @@ validate_migration_and_directory() {
 
 
     elif [ "$MIGRATE" = "import" ]; then
-        if [ "$PARENT_FOLDER_NAME" != "$NAME_MIGRATION_STATION" ]; then
+        if [ "$NAME_CURRENT_FOLDER" != "$NAME_MIGRATION_STATION" ]; then
             recho "Error: For import, parent directory should be $NAME_MIGRATION_STATION"
             exit 1
         fi
@@ -373,6 +373,15 @@ process_arguments "$@"
 validate_arguments
 set_current_folder_name
 set_scripts_directory_path
+if [ "$DEBUG" = true ]; then
+    mecho "MIGRATE: $MIGRATE"
+    mecho "DEBUG: $DEBUG"
+    mecho "NAME_CURRENT_FOLDER: $NAME_CURRENT_FOLDER"
+    mecho "NAME_DOCKER_MIGRATE: $NAME_DOCKER_MIGRATE"
+    mecho "NAME_MIGRATION_STATION: $NAME_MIGRATION_STATION"
+    mecho "NAME_SCRIPTS_DIRECTORY_PATH: $NAME_SCRIPTS_DIRECTORY_PATH"
+    mecho "PROJECT_NAME: $PROJECT_NAME"
+fi
 validate_migration_and_directory
 stop_running_containers
 set_project_name
