@@ -31,6 +31,20 @@ backup_volume() {
     local volume=$1
     local filepath=$2
 
+        # if debug is true, print the following # and pwd
+    if [ "$DEBUG" = true ]; then
+        mecho "volume: $volume"
+        mecho "filepath: $filepath"
+    fi
+
+
+    # Create the backup directory if it doesn't exist
+    mkdir -p $filepath
+
+    # Set the correct permissions for the backup directory
+    chmod -R 777 $filepath 
+
+
     # Run a Docker command to backup the volume
     # This command runs a temporary Docker container with the alpine image,
     # mounts the volume to /volume in the container,
