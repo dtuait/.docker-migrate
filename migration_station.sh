@@ -224,7 +224,6 @@ delete_old_images_tar_files() {
         gecho "Deleting old images..."
         rm -rf /$NAME_SCRIPTS_DIRECTORY_PATH/_images
     fi
-    mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_images
 }
 
 get__images() {
@@ -258,7 +257,6 @@ delete_old_volumes_tar_files() {
                 gecho "Deleting old volumes..."
                 rm -rf /$NAME_SCRIPTS_DIRECTORY_PATH/_volumes
             fi
-            mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
         }
 
 get__volumes() {
@@ -305,46 +303,51 @@ execute_migration() {
         gecho "Exporting volumes..."        
         delete_old_volumes_tar_files
         get__volumes
-        for volume in "${volumes[@]}"; do
+        if [ "${#volumes[@]}" -gt 0 ]; then
+            mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
+            for volume in "${volumes[@]}"; do
 
-            # if debug is true, print the following
-            if [ "$DEBUG" = true ]; then
-                mecho "Backing up $volume..."
-            fi
+                # if debug is true, print the following
+                if [ "$DEBUG" = true ]; then
+                    mecho "Backing up $volume..."
+                fi
 
-            gecho "Backing up $volume..."
-            backup_volume $volume $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
+                gecho "Backing up $volume..."
+                backup_volume $volume $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
 
-            if [ $? -eq 0 ]
-            then
-                gecho "$volume backed up successfully."
-            else
-                recho "Error backing up $volume."
-                exit 1
-            fi
+                if [ $? -eq 0 ]
+                then
+                    gecho "$volume backed up successfully."
+                else
+                    recho "Error backing up $volume."
+                    exit 1
+                fi
+            done
         done
         gecho "Done exporting volumes."
         
         gecho "Exporting images..."
         delete_old_images_tar_files
         get__images
-        for image in "${images[@]}"; do
+        if [ "${#images[@]}" -gt 0 ]; then
+            mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_images
+            for image in "${images[@]}"; do
 
-            # if debug is true, print the following
-            if [ "$DEBUG" = true ]; then
-                mecho "Backing up $image..."
-            fi
+                # if debug is true, print the following
+                if [ "$DEBUG" = true ]; then
+                    mecho "Backing up $image..."
+                fi
 
-            # image name with / replaced by . and : replaced by _
-            safe_image_name=$(echo $image | tr '/' '.')
-            safe_image_name=$(echo $safe_image_name | tr ':' '_')
-            gecho "Backing up $image..."
-            backup_image $image $NAME_SCRIPTS_DIRECTORY_PATH/_images
-            
+                # image name with / replaced by . and : replaced by _
+                safe_image_name=$(echo $image | tr '/' '.')
+                safe_image_name=$(echo $safe_image_name | tr ':' '_')
+                gecho "Backing up $image..."
+                backup_image $image $NAME_SCRIPTS_DIRECTORY_PATH/_images
+                
 
+            done
+            gecho "Done exporting images."
         done
-        gecho "Done exporting images."
-
 
         # Define the directory where the tar.gz file should be saved
         migration_station_dir="${NAME_SCRIPTS_DIRECTORY_PATH}/../../../migration_station"
@@ -461,71 +464,73 @@ execute_migration() {
         get__volumes
         gecho "Importing volumes..."
         # import volumes to docker
-        for volume in "${volumes[@]}"; do
-
-            # if debug is true, print the following
-            if [ "$DEBUG" = true ]; then
-                mecho "Importing $volume..."
-            fi
-
-            # if volume exists 
-            if [ -n "$(docker volume ls -q | grep $volume)" ]; then
+        if [ "${#volumes[@]}" -gt 0 ]; then
+            mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
+            for volume in "${volumes[@]}"; do
 
                 # if debug is true, print the following
                 if [ "$DEBUG" = true ]; then
-                    mecho "Backup volume volume $volume..."
-                fi
-                
-                backup_filepath=$_project_dir-$datetime/.devcontainer/.docker-migrate/_volumes_backup/
-                # check if backup_filepath exist if not create it
-                if [ ! -d $backup_filepath ]; then
-                    mkdir -p $backup_filepath
-                fi                
-                backup_volume $volume $backup_filepath
-                # check if successful
-                if [ $? -eq 0 ]; then
-                    gecho "$volume backed up successfully."
-                else
-                    recho "Error backing up $volume."
-                    exit 1
+                    mecho "Importing $volume..."
                 fi
 
-                # Find and remove any containers using the volume
-                container_ids=$(docker ps -a -q --filter "volume=$volume")
-                if [ -n "$container_ids" ]; then
-                    gecho "Stopping and removing containers using volume $volume..."
-                    docker rm -f $container_ids
+                # if volume exists 
+                if [ -n "$(docker volume ls -q | grep $volume)" ]; then
+
+                    # if debug is true, print the following
+                    if [ "$DEBUG" = true ]; then
+                        mecho "Backup volume volume $volume..."
+                    fi
+                    
+                    backup_filepath=$_project_dir-$datetime/.devcontainer/.docker-migrate/_volumes_backup/
+                    # check if backup_filepath exist if not create it
+                    if [ ! -d $backup_filepath ]; then
+                        mkdir -p $backup_filepath
+                    fi                
+                    backup_volume $volume $backup_filepath
+                    # check if successful
                     if [ $? -eq 0 ]; then
-                        gecho "Containers using volume $volume deleted successfully."
+                        gecho "$volume backed up successfully."
                     else
-                        gecho "Error deleting containers using volume $volume."
+                        recho "Error backing up $volume."
+                        exit 1
+                    fi
+
+                    # Find and remove any containers using the volume
+                    container_ids=$(docker ps -a -q --filter "volume=$volume")
+                    if [ -n "$container_ids" ]; then
+                        gecho "Stopping and removing containers using volume $volume..."
+                        docker rm -f $container_ids
+                        if [ $? -eq 0 ]; then
+                            gecho "Containers using volume $volume deleted successfully."
+                        else
+                            gecho "Error deleting containers using volume $volume."
+                            exit 1
+                        fi
+                    fi
+
+                    # delete the volume from docker enviroment
+                    docker volume rm $volume
+                    # check if successful
+                    if [ $? -eq 0 ]; then
+                        gecho "$volume deleted successfully."
+                    else
+                        recho "Error deleting $volume."
                         exit 1
                     fi
                 fi
+                    
+                docker volume create $volume
 
-                # delete the volume from docker enviroment
-                docker volume rm $volume
-                # check if successful
+                docker run --rm -v $volume:/volume -v $(pwd)/_volumes:/backup alpine tar -xzvf /backup/$volume.tar >/dev/null
                 if [ $? -eq 0 ]; then
-                    gecho "$volume deleted successfully."
+                    gecho "$volume imported successfully."
                 else
-                    recho "Error deleting $volume."
+                    recho "Error importing $volume."
                     exit 1
                 fi
-            fi
-                
-            docker volume create $volume
 
-            docker run --rm -v $volume:/volume -v $(pwd)/_volumes:/backup alpine tar -xzvf /backup/$volume.tar >/dev/null
-            if [ $? -eq 0 ]; then
-                gecho "$volume imported successfully."
-            else
-                recho "Error importing $volume."
-                exit 1
-            fi
-
-        done
-
+            done
+        fi
         gecho "Done importing volumes."
         
         gecho "Deleting old images... (_images)"
