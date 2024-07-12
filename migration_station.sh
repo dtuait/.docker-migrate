@@ -489,8 +489,21 @@ execute_migration() {
                     recho "Error backing up $volume."
                     exit 1
                 fi
+
+                # Find and remove any containers using the volume
+                container_ids=$(docker ps -a -q --filter "volume=$volume")
+                if [ -n "$container_ids" ]; then
+                    gecho "Stopping and removing containers using volume $volume..."
+                    docker rm -f $container_ids
+                    if [ $? -eq 0 ]; then
+                        gecho "Containers using volume $volume deleted successfully."
+                    else
+                        gecho "Error deleting containers using volume $volume."
+                        exit 1
+                    fi
+                fi
+
                 # delete the volume from docker enviroment
-                # try to delete docker rm $volume
                 docker volume rm $volume
                 # check if successful
                 if [ $? -eq 0 ]; then
