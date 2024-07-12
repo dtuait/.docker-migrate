@@ -219,10 +219,17 @@ validate_migration_and_directory() {
 }
 
 delete_old_images_tar_files() {
+
+    if [ "$DEBUG" = true ]; then
+        mecho "delete: $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images"
+    fi
+
     # Delete the images directory if it exists, then recreate it
-    if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/_images" ]; then
+    if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images" ]; then
         gecho "Deleting old images..."
-        rm -rf /$NAME_SCRIPTS_DIRECTORY_PATH/_images
+        rm -rf $NAME_SCRIPTS_DIRECTORY_PATH/_images
+    else
+        gecho "Directory $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images does not exist, so no reason to delete."
     fi
 }
 
@@ -252,12 +259,19 @@ get__images() {
 }
 
 delete_old_volumes_tar_files() {
-            # Delete the volumes directory if it exists, then recreate it
-            if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/_volumes" ]; then
-                gecho "Deleting old volumes..."
-                rm -rf /$NAME_SCRIPTS_DIRECTORY_PATH/_volumes
-            fi
-        }
+
+    if [ "$DEBUG" = true ]; then
+        mecho "delete: $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes"
+    fi
+
+    # Delete the volumes directory if it exists, then recreate it
+    if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes" ]; then
+        gecho "Deleting old volumes..."
+        rm -rf $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
+    else
+        gecho "Directory $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes does not exist, so no reason to delete."
+    fi
+}
 
 get__volumes() {
 
@@ -301,7 +315,6 @@ execute_migration() {
         # Put the code for the 'export' case here
 
         gecho "Exporting volumes..."        
-        delete_old_volumes_tar_files
         get__volumes
         if [ "${#volumes[@]}" -gt 0 ]; then
             mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
