@@ -323,7 +323,7 @@ execute_migration() {
                     exit 1
                 fi
             done
-        done
+        fi
         gecho "Done exporting volumes."
         
         gecho "Exporting images..."
@@ -347,7 +347,7 @@ execute_migration() {
 
             done
             gecho "Done exporting images."
-        done
+        fi
 
         # Define the directory where the tar.gz file should be saved
         migration_station_dir="${NAME_SCRIPTS_DIRECTORY_PATH}/../../../migration_station"
