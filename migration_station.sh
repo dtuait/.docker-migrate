@@ -100,6 +100,9 @@ process_arguments() {
                 MIGRATE="$2"
                 shift # Skip the argument value
                 ;;
+            --get-env-from-backup)
+                GET_ENV_FROM_BACKUP=true
+                    ;;
             *)
                 echo "Unknown option: $1"
                 exit 1
@@ -227,7 +230,12 @@ delete_old_images_tar_files() {
     # Delete the images directory if it exists, then recreate it
     if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images" ]; then
         gecho "Deleting old images..."
-        rm -rf $NAME_SCRIPTS_DIRECTORY_PATH/_images
+        rm -rf $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images
+
+        # Check if the directory still exists
+        if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images" ]; then
+            recho "Error: Failed to delete directory $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images."
+        fi
     else
         gecho "Directory $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_images does not exist, so no reason to delete."
     fi
@@ -267,10 +275,30 @@ delete_old_volumes_tar_files() {
     # Delete the volumes directory if it exists, then recreate it
     if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes" ]; then
         gecho "Deleting old volumes..."
-        rm -rf $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
+        rm -rf $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes
+
+        # Check if the directory still exists
+        if [ -d "$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes" ]; then
+            recho "Error: Failed to delete directory $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes."
+
+            # Get the list of running containers
+            running_containers=$(docker ps -q)
+
+            # Check if any containers are using the volume
+            if [ ! -z "$running_containers" ]; then
+                gecho "Running containers:"
+                docker ps --format "{{.Names}}"
+            else
+                oecho "No running containers found."
+            fi
+
+
+        fi
     else
         gecho "Directory $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/_volumes does not exist, so no reason to delete."
     fi
+
+
 }
 
 get__volumes() {
@@ -378,9 +406,69 @@ execute_migration() {
         fi
         cp $NAME_SCRIPTS_DIRECTORY_PATH/migration_station.sh $migration_station_dir/$PROJECT_NAME
 
+
+        # run python script that creates .env.example out of .env
+        if python3 "$NAME_SCRIPTS_DIRECTORY_PATH/create_env_example.py"; then
+            gecho "Python script executed successfully."
+        else
+            oecho "Python script failed to execute."
+        fi
         
+        #### exclude .env file starts here ####
+        absolute_env_exclude_path=$(readlink -f "$NAME_SCRIPTS_DIRECTORY_PATH/../.env")
         # Define the tar.gz file name
-        tar -czf $migration_station_dir/$PROJECT_NAME.tar.gz $NAME_SCRIPTS_DIRECTORY_PATH/../../../$PROJECT_NAME > /dev/null
+        # i want to exclude $NAME_SCRIPTS_DIRECTORY_PATH/../.env
+        # if debug is true, print the following
+        if [ "$DEBUG" = true ]; then
+            mecho "$NAME_SCRIPTS_DIRECTORY_PATH"
+
+            if [ -f "$NAME_SCRIPTS_DIRECTORY_PATH/../.env" ]; then
+                gecho "$NAME_SCRIPTS_DIRECTORY_PATH/../.env exists."
+            else
+                gecho "$NAME_SCRIPTS_DIRECTORY_PATH/../.env does not exist."
+            fi
+
+            oecho "Excluding: $absolute_env_exclude_path"
+        fi
+
+        env_file=$absolute_env_exclude_path
+        backup_env_path="/root/tmp/.env_backup"
+
+        # Ensure /root/tmp exists
+        mkdir -p /root/tmp
+
+
+        # Check if the .env file exists and move it temporarily
+        if [ -f "$env_file" ]; then
+            mv "$env_file" "$backup_env_path"
+            if [ "$DEBUG" = true ]; then
+                echo ".env file moved to temporary location under /root/tmp."
+            fi
+        fi
+
+        # Additional debug: Check if file still exists in expected location before creating tarball
+        if [ "$DEBUG" = true ]; then
+            if [ -f "$env_file" ]; then
+                echo "Error: .env file still exists in the expected location."
+            else
+                echo ".env file confirmed not in the expected location."
+            fi
+        fi
+
+        #### exclude .env file stops here ####
+
+        tar -czf "$migration_station_dir/$PROJECT_NAME.tar.gz" "$NAME_SCRIPTS_DIRECTORY_PATH/../../../$PROJECT_NAME" > /dev/null
+
+
+        # Move the .env file back to its original location
+        if [ -f "$backup_env_path" ]; then
+            mv "$backup_env_path" "$env_file"
+            if [ "$DEBUG" = true ]; then
+                echo ".env file restored to original location."
+            fi
+        fi
+
+
         # check if successful
         if [ $? -eq 0 ]; then
             gecho "Creating tar.gz file..."
@@ -410,6 +498,8 @@ execute_migration() {
         # Put the code for the 'import' case here
         gecho "importing..."
 
+
+
         # If $PROJECT_NAME already exists, move it to $PROJECT_NAME-$datetime        
         _project_dir=$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME
 
@@ -419,10 +509,31 @@ execute_migration() {
             # exit 0
         fi
 
+        #  # Correct syntax for checking directory existence and condition
+        # if [ -d "$_project_dir" ] && [ "$GET_ENV_FROM_BACKUP" = true ]; then
+        #     # Define the source path of the .env file
+        #     env_file_source="${_project_dir}/.devcontainer/.env"
+            
+        #     # Define the target path where the .env file should be copied to
+        #     env_file_target="${_project_dir}/.env"
+
+        #     # Check if the source .env file exists before attempting to copy
+        #     if [ -f "$env_file_source" ]; then
+        #         cp "$env_file_source" "$env_file_target"
+        #         if [ "$DEBUG" = true ]; then
+        #             gecho "Copied .env from $env_file_source to $env_file_target"
+        #         fi
+        #     else
+        #         if [ "$DEBUG" = true ]; then
+        #             gecho "No .env file found at $env_file_source to copy."
+        #         fi
+        #     fi
+        # fi
+
         ## $_project_dir >> /home/vicmrp/docker/migration_station/../../../api.security.ait.dtu.dk
+        datetime=$(date '+%Y-%m-%d-%H-%M-%S')
         if [ -d "$_project_dir" ]; then
-            # if debug the true, print the following
-            datetime=$(date '+%Y-%m-%d-%H-%M-%S')
+            # if debug the true, print the following            
             gecho "Moving $PROJECT_NAME to $PROJECT_NAME-$datetime..."
             mv $_project_dir $_project_dir-$datetime
         fi
@@ -432,6 +543,23 @@ execute_migration() {
         gecho "Extracting tar.gz file...."
         tar -xzf $_tar_project_dir -C $NAME_SCRIPTS_DIRECTORY_PATH/../ > /dev/null
 
+        if [ "$GET_ENV_FROM_BACKUP" = true ]; then
+            env_file_source="$_project_dir-$datetime/.devcontainer/.env"
+
+            env_file_target="${_project_dir}/.devcontainer/.env"
+            # Check if the source .env file exists before attempting to copy
+            if [ -f "$env_file_source" ]; then
+                cp "$env_file_source" "$env_file_target"
+                if [ "$DEBUG" = true ]; then
+                    gecho "Copied .env from $env_file_source to $env_file_target"
+                fi
+            else
+                if [ "$DEBUG" = true ]; then
+                    gecho "No .env file found at $env_file_source to copy."
+                fi
+            fi
+
+        fi
 
         # cd to the project directory
         gecho "cd's to $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate"
@@ -548,6 +676,7 @@ execute_migration() {
         
         gecho "Deleting old images... (_images)"
         delete_old_images_tar_files
+        sleep 2
         gecho "Deleting old volumes... (_volumes)"
         delete_old_volumes_tar_files
 
@@ -580,11 +709,13 @@ execute_migration() {
 # PARAMETERS SNAKE_UPPERCASE means that the variable is a constant after being set
 MIGRATE=""
 DEBUG=false
+GET_ENV_FROM_BACKUP=false
 NAME_CURRENT_FOLDER=""
 NAME_DOCKER_MIGRATE=".docker-migrate"
 NAME_MIGRATION_STATION="migration_station"
 NAME_SCRIPTS_DIRECTORY_PATH="" # the location of the script
 PROJECT_NAME="" # the name of the project
+datetime=$(date "+%Y-%m-%d-%H-%M-%S")
 
 # Process and validate command-line arguments
 process_arguments "$@"
