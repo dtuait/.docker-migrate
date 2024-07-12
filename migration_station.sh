@@ -515,9 +515,12 @@ execute_migration() {
 
         gecho "Done importing volumes."
         
+        gecho "Deleting old images... (_images)"
         delete_old_images_tar_files
+        gecho "Deleting old volumes... (_volumes)"
         delete_old_volumes_tar_files
 
+        gecho "Script is done importing."
 
     else
         echo "Error: Unknown MIGRATE value: $MIGRATE"
