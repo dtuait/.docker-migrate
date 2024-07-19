@@ -126,17 +126,23 @@ validate_arguments() {
     fi
 }
 
-stop_running_containers() {
-    # Get all currently running container IDs and save them in an array
-    running_containers=$(docker ps -q)
+stop_and_remove_containers_except_portainer() {
 
-    # Stop the running containers
-    if [ ! -z "$running_containers" ]; then
-        gecho "Stopping running containers: $running_containers"
-        docker stop $running_containers
-    else
-        oecho "No running containers to stop."
-    fi
+
+  # Get a list of all running container IDs except for Portainer
+  running_containers=$(docker ps -q | grep -v $(docker ps -q --filter "name=portainer"))
+
+  # Stop and remove each container
+  if [[ -n $running_containers ]]; then
+    gecho "Stopping running containers: $running_containers"
+    docker stop $running_containers
+  else
+    gecho "No containers to stop, except Portainer."
+  fi
+
+  gecho "All containers except Portainer have been stopped."
+
+
 }
 
 restart_containers() {
@@ -723,7 +729,7 @@ validate_arguments
 set_current_folder_name
 set_scripts_directory_path
 validate_migration_and_directory
-stop_running_containers
+stop_and_remove_containers_except_portainer
 set_project_name
 
 if [ "$DEBUG" = true ]; then
