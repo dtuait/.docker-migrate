@@ -1,3 +1,6 @@
+
+This scripts expects to be a submodule under my-git-project/.devcontainer/.docker-migrate, and it relies on the existing of folder next "my-git-project" named migration_station
+
 this script depends on the following paths
 for exporting /home/vicmrp/docker/[project]/.docker-migrate
 for importing /home/vicmrp/docker/migration_station/
