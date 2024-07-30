@@ -663,8 +663,8 @@ execute_migration() {
 
         gecho "Set ownership to dockeruser:dockeruser for project directory..."
         chown -R dockeruser:dockeruser $project_dir
-        gecho "Set 755 permission to project directory..."
-        chmod -R 755 $project_dir
+        gecho "Set 777 permission to project directory..."
+        chmod -R 777 $project_dir
         
         gecho "Deleting old images... (_images)"
         delete_old_images_tar_files
