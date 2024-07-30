@@ -556,6 +556,12 @@ execute_migration() {
             # Check if the source .env file exists before attempting to copy
             if [ -f "$env_file_source" ]; then
                 cp "$env_file_source" "$env_file_target"
+
+                # change the owner of the .env file to dockeruser:dockeruser
+                chown 65000:65000 $env_file_target
+                # set 770 permission to the .env file
+                chmod 770 $env_file_target
+
                 if [ "$DEBUG" = true ]; then
                     gecho "Copied .env from $env_file_source to $env_file_target"
                 fi
