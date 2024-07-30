@@ -309,13 +309,10 @@ delete_old_volumes_tar_files() {
 
 get__volumes() {
 
-
-    
-
     # if debg is true, print the following
     if [ "$DEBUG" = true ]; then
         mecho "Reading volumes from volumes.txt..."
-        cat $NAME_SCRIPTS_DIRECTORY_PATH/volumes.txt
+        cat $NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME/.devcontainer/.docker-migrate/volumes.txt
     fi
 
 
@@ -507,41 +504,20 @@ execute_migration() {
 
 
         # If $PROJECT_NAME already exists, move it to $PROJECT_NAME-$datetime        
-        _project_dirc=$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME
+        project_dir=$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME
+        datetime=$(date '+%Y-%m-%d-%H-%M-%S')
 
         # if debg is true, print the following
         if [ "$DEBUG" = true ]; then
-            mecho "$_project_dir"
+            mecho "project_dir $project_dir"
             # exit 0
         fi
 
-        #  # Correct syntax for checking directory existence and condition
-        # if [ -d "$_project_dir" ] && [ "$GET_ENV_FROM_BACKUP" = true ]; then
-        #     # Define the source path of the .env file
-        #     env_file_source="${_project_dir}/.devcontainer/.env"
-            
-        #     # Define the target path where the .env file should be copied to
-        #     env_file_target="${_project_dir}/.env"
 
-        #     # Check if the source .env file exists before attempting to copy
-        #     if [ -f "$env_file_source" ]; then
-        #         cp "$env_file_source" "$env_file_target"
-        #         if [ "$DEBUG" = true ]; then
-        #             gecho "Copied .env from $env_file_source to $env_file_target"
-        #         fi
-        #     else
-        #         if [ "$DEBUG" = true ]; then
-        #             gecho "No .env file found at $env_file_source to copy."
-        #         fi
-        #     fi
-        # fi
-
-        ## $_project_dir >> /home/vicmrp/docker/migration_station/../../../api.security.ait.dtu.dk
-        datetime=$(date '+%Y-%m-%d-%H-%M-%S')
-        if [ -d "$_project_dir" ]; then
+        if [ -d "$project_dir" ]; then
             # if debug the true, print the following            
             gecho "Moving $PROJECT_NAME to $PROJECT_NAME-$datetime..."
-            mv $_project_dir $_project_dir-$datetime
+            mv $project_dir $project_dir-$datetime
         fi
 
         # Extract the tar.gz file and put it in the parent directory
@@ -550,7 +526,7 @@ execute_migration() {
         tar -xzf $_tar_project_dir -C $NAME_SCRIPTS_DIRECTORY_PATH/../ > /dev/null
 
         if [ "$GET_ENV_FROM_BACKUP" = true ]; then
-            env_file_source="$_project_dir-$datetime/.devcontainer/.env"
+            env_file_source="$project_dir-$datetime/.devcontainer/.env"
 
             env_file_target="${_project_dir}/.devcontainer/.env"
             # Check if the source .env file exists before attempting to copy
@@ -558,7 +534,7 @@ execute_migration() {
                 cp "$env_file_source" "$env_file_target"
 
                 # # change the owner of the .env file to dockeruser:dockeruser
-                # chown 65000:65000 $env_file_target
+                # chown dockeruser:dockeruser $env_file_target
                 # # set 770 permission to the .env file
                 # chmod 770 $env_file_target
 
@@ -618,7 +594,6 @@ execute_migration() {
         gecho "Importing volumes..."
         # import volumes to docker
         if [ "${#volumes[@]}" -gt 0 ]; then
-            mkdir -p $NAME_SCRIPTS_DIRECTORY_PATH/_volumes
             for volume in "${volumes[@]}"; do
 
                 # if debug is true, print the following
@@ -631,10 +606,10 @@ execute_migration() {
 
                     # if debug is true, print the following
                     if [ "$DEBUG" = true ]; then
-                        mecho "Backup volume volume $volume..."
+                        mecho "Backup volume $volume..."
                     fi
                     
-                    backup_filepath=$_project_dir-$datetime/.devcontainer/.docker-migrate/_volumes_backup/
+                    backup_filepath=$project_dir-$datetime/.devcontainer/.docker-migrate/_volumes_backup/
                     # check if backup_filepath exist if not create it
                     if [ ! -d $backup_filepath ]; then
                         mkdir -p $backup_filepath
@@ -686,10 +661,10 @@ execute_migration() {
         fi
         gecho "Done importing volumes."
 
-        gecho "Set ownership to 65000:65000 for project directory..."
-        chown -R 65000:65000 $_project_dir
+        gecho "Set ownership to dockeruser:dockeruser for project directory..."
+        chown -R dockeruser:dockeruser $project_dir
         gecho "Set 770 permission to project directory..."
-        chmod -R 770 $_project_dir
+        chmod -R 770 $project_dir
         
         gecho "Deleting old images... (_images)"
         delete_old_images_tar_files
