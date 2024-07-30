@@ -507,7 +507,7 @@ execute_migration() {
 
 
         # If $PROJECT_NAME already exists, move it to $PROJECT_NAME-$datetime        
-        _project_dir=$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME
+        _project_dirc=$NAME_SCRIPTS_DIRECTORY_PATH/../$PROJECT_NAME
 
         # if debg is true, print the following
         if [ "$DEBUG" = true ]; then
@@ -557,10 +557,10 @@ execute_migration() {
             if [ -f "$env_file_source" ]; then
                 cp "$env_file_source" "$env_file_target"
 
-                # change the owner of the .env file to dockeruser:dockeruser
-                chown 65000:65000 $env_file_target
-                # set 770 permission to the .env file
-                chmod 770 $env_file_target
+                # # change the owner of the .env file to dockeruser:dockeruser
+                # chown 65000:65000 $env_file_target
+                # # set 770 permission to the .env file
+                # chmod 770 $env_file_target
 
                 if [ "$DEBUG" = true ]; then
                     gecho "Copied .env from $env_file_source to $env_file_target"
@@ -685,6 +685,11 @@ execute_migration() {
             done
         fi
         gecho "Done importing volumes."
+
+        gecho "Set ownership to 65000:65000 for project directory..."
+        chown -R 65000:65000 $_project_dir
+        gecho "Set 770 permission to project directory..."
+        chmod -R 770 $_project_dir
         
         gecho "Deleting old images... (_images)"
         delete_old_images_tar_files
