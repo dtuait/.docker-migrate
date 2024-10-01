@@ -10,6 +10,7 @@
 # Ignore all files in these directories
 /_images/*
 /_volumes/*
+/_volumes_backup/*
 /migrated-composer/*
 images.txt
 volumes.txt
